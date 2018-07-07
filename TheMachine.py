@@ -36,6 +36,46 @@ class Engine(QWidget):
         super(Engine, self).__init__()
         pass
 
+class ElidedLabel(QLabel):
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        metrics = QFontMetrics(self.font())
+        elided = metrics.elidedText(self.text(), Qt.ElideRight, self.width())
+        painter.drawText(self.rect(), self.alignment(), elided)
+
+class UlyssesItem(QWidget):
+    def __init__(self):
+        super(UlyssesItem, self).__init__()
+
+        self.title = QLabel("Title")
+        self.font = QFont()
+        self.font.setBold(True)
+        self.title.setFont( self.font )
+
+        self.time = QLabel(datetime.datetime.now().strftime( "%A %m/%d/%y %I:%M %p"))
+        timefont = QFont()
+        timefont.setPointSize( 9 )
+        self.time.setFont( timefont )
+
+        self.master_layout = QVBoxLayout()
+        self.master_layout.setContentsMargins(2,2,2,2)
+        self.master_layout.setSpacing( 2 )
+
+        self.txt = QLabel()
+        self.txt.setText("this sdfsdfsdf"
+                     "sdfsfsdfsdfsdf"
+                     "is an example document that donald had written he said lorem ipsum something, "
+                     "something or something else.")
+        self.txt.setWordWrap(True)
+        self.master_layout.addWidget( self.time )
+        self.master_layout.addWidget( self.title )
+        self.master_layout.addWidget(self.txt)
+        self.master_layout.addStretch(1)
+        self.setLayout( self.master_layout )
+
+
+
 class Silo(QWidget):
     '''
     Silos are the QWidget frames that inherit the main engine. Each one contains its own tasks, dates, etc for looku by the engine.
@@ -80,6 +120,89 @@ class Silo(QWidget):
         self.base[base_name] = airtable.Airtable(key, base_name)
         self.model[base_name] = self.base[base_name].get_all()
 
+
+####TODO:: Ulysses is now charging. I just paid 50 last year for it, now they want subscription.
+####TODO:: Write Ulysses alternative
+
+class EugeneRoe(Silo):
+    def __init__(self):
+        super(EugeneRoe, self).__init__()
+
+
+        self.base = "/Users/donaldstrubler/Documents/WRITE"
+        self.projects = os.walk( self.base )
+
+        self.splitter = QSplitter(Qt.Horizontal)
+
+        self.project_tree = QTreeWidget()
+        header = QTreeWidgetItem(["Project"])
+        # ...
+        self.project_tree.setHeaderItem(header)  # Another alternative is setHeaderLabels(["Tree","First",...])
+
+        self.root = QTreeWidgetItem(self.project_tree, ["Blogging"])
+        self.set_icon( self.root, 'notebook-3' )
+        self.root.setBackground( 0, QBrush( QColor( 60, 60, 60, 200 ) ) )
+        self.root.setSizeHint( 0, QSize(0, 30))
+        A = QTreeWidgetItem(self.root, ["A"])
+
+        bazA = QTreeWidgetItem(A, ["baz"])
+
+        root2 = QTreeWidgetItem(self.project_tree, ["Cloud"])
+        #root2.setSizeHint(0, QSize(0, 30))
+        A2 = QTreeWidgetItem(root2, ["iCloud"])
+        self.barA2 = QTreeWidgetItem(A2, ["bar"])
+        self.set_icon( self.barA2, 'map-location' )
+
+        bazA2 = QTreeWidgetItem(A2, ["baz"])
+
+        A2.setIcon( 0, QIcon( QPixmap( "/Users/donaldstrubler/PycharmProjects/MysteryMachine/ui/icons/white/cloud-computing-2.png" ) ) )
+
+        self.items_list = QListWidget()
+        self.write = QPlainTextEdit()
+
+        document =  self.write.document()
+
+        font = document.defaultFont()
+        font.setFamily("Courier New")
+        document.setDefaultFont(font)
+
+        self.project_tree.setIconSize(QSize(18,18))
+
+
+        treepalette = self.project_tree.palette()
+
+
+        treepalette.setColor(QPalette.Highlight, QColor(70, 70, 70, 215))
+        self.project_tree.setPalette( treepalette )
+
+
+        cl =  UlyssesItem()
+
+
+        self.project_tree.setIndentation( 15 )
+        self.project_tree.header().hide()
+
+        self.splitter.addWidget( self.project_tree )
+        self.splitter.addWidget( self.items_list )
+        self.splitter.addWidget( self.write )
+
+        self.master_layout.addWidget( self.splitter )
+
+        self.items = {}
+        self.docs = {}
+        for i in range(10):
+            self.items[i] = QListWidgetItem()
+            self.items[i].setSizeHint(QSize(0, 90))
+            self.items_list.addItem( self.items[i] )
+            self.docs[i] = UlyssesItem()
+            self.items_list.setItemWidget( self.items[i] , self.docs[i]  )
+
+
+        self.project_tree.expandToDepth(10)
+        self.project_tree.setAnimated(True)
+
+    def set_icon(self, item, icon):
+        item.setIcon(0, QIcon( QPixmap("/Users/donaldstrubler/PycharmProjects/MysteryMachine/ui/icons/white/%s.png" %icon)))
 
 class Tasks(Silo):
     def __init__(self):
@@ -346,7 +469,8 @@ class DayPlanner(Silo):
         super(DayPlanner, self).__init__()
 
         self.events = {}
-
+        now = datetime.datetime.now()
+        self.day = ( now.year, now.month, now.day )
         self.top_button_bar.setVisible(True)
         self.act = QAction( 'new day' )
         self.top_button_bar.addAction( self.act )
@@ -365,6 +489,11 @@ class DayPlanner(Silo):
         self.done = QAction('done')
         self.top_button_bar.addAction(self.done)
 
+        self.date = QDateEdit()
+        self.date.setCalendarPopup(True)
+        now = datetime.datetime.now()
+        self.date.setDate( QDate( now.year, now.month, now.day ) )
+        self.master_layout.addWidget( self.date )
 
 
 
@@ -373,14 +502,18 @@ class DayPlanner(Silo):
         self.up.triggered.connect(self.move_events_up )
         self.down.triggered.connect(self.move_events_down)
         self.small.triggered.connect(self.make_small)
-        self.done.triggered.connect( self.complete )
+        self.done.triggered.connect( self.what_day)
 
         self.schedule = QTableWidget()
         self.master_layout.addWidget( self.schedule )
 
         self.agenda = {}
 
-        self.populateDay()
+        self.planner = {}
+        self.planner[ now.strftime("%Y%m%d") ] = {}
+
+
+        #self.populateDay()
 
 
         self.schedule.horizontalHeader().setStretchLastSection(True)
@@ -390,17 +523,37 @@ class DayPlanner(Silo):
         self.schedule.setPalette( self.sched_pal )
         self.schedule.setSelectionBehavior(QAbstractItemView.SelectRows)
 
-        #assume a normal sleeping pattern
-        for i in xrange(1,7):
-            self.add_event(i, 'sleep')
+        self.date.dateChanged.connect( self.add_events_from_log )
+
+        #self.add_events_from_log()
 
 
+    def set_day(self, day):
+        pass
+
+
+    def what_day(self):
+        print self.day
+
+    def strday(self):
+        print "%04d%02d%02d" %( self.day[0], self.day[1], self.day[2] )
 
     def complete(self):
         for i, e in self.events.iteritems():
 
             if e.isChecked():
                 e.setVisible(False)
+
+
+
+
+    def string_in(self, string):
+        """
+        Sees if string is already in row.
+        :param string:
+        :return:
+        """
+
 
     def add_event(self, hour, string=None):
         if string:
@@ -419,6 +572,33 @@ class DayPlanner(Silo):
             self.events[name].event_checked.connect( self.register_selection_choice )
 
             self.agenda[hour].master_layout.insertWidget( 0 , self.events[name])
+            self.write_day_log()
+
+    def serialize_day(self):
+        day = {}
+        for h, v in self.agenda.iteritems():
+
+            cn =  v.master_layout.count()
+            hr = []
+            if cn>0:
+                day[h] = hr
+                for w in range(cn):
+                        day[h].append( v.master_layout.itemAt(w).widget().text() )
+        return day
+
+    def write_day_log(self):
+        day = str(self.day[0])+str(self.day[1])+str(self.day[2])
+        base = "/Users/donaldstrubler/Documents/MysteryMachine/DayPlanner"
+        fl = "%s/%s.log" %( base, day )
+        with open(fl, 'w') as outfile:
+            json.dump(self.serialize_day(), outfile)
+
+    def change_day(self):
+        #self.schedule.clear()
+        day = self.date.date()
+        self.date = (day.year, day.month, day.day)
+        print self.date
+        #self.add_events_from_log()
 
 
 
@@ -433,6 +613,8 @@ class DayPlanner(Silo):
 
                     self.agenda[ind+offset].master_layout.insertWidget(0, e)
                     #self.agenda[ind+offset].master_layout.setStretchFactor( e, 1 )
+
+        self.write_day_log()
 
 
     def make_small(self):
@@ -494,10 +676,10 @@ class DayPlanner(Silo):
         c = 0
         hrz = [12]+(list(xrange(1,13))*2)[:-1]
         hour_readable = [ "%s AM" %str(q) if i < 12 else "%s PM" %str(q) for i,q in enumerate(hrz) ]
-        self.schedule.setColumnCount(2)
+        self.schedule.setColumnCount(3)
         self.schedule.verticalHeader().hide()
 
-        self.schedule.setHorizontalHeaderLabels(['Time', 'Agenda'])
+        self.schedule.setHorizontalHeaderLabels(['Time', 'tbd', 'Agenda'])
         self.schedule.horizontalHeaderItem( 0 ).setTextAlignment(Qt.AlignHCenter)
 
         night = QColor(205,220,255,170)
@@ -523,7 +705,7 @@ class DayPlanner(Silo):
             self.agenda[c] = AgendaItem(self, c)
             self.agenda[c].hourDoubleClicked.connect( self.add_event )
             self.agenda[c].cellSelected.connect(self.select_row)
-            self.schedule.setCellWidget(c, 1, self.agenda[c])
+            self.schedule.setCellWidget(c, 2, self.agenda[c])
 
             #s.setMinimumHeight(30)
             if c<6:
@@ -554,8 +736,9 @@ class DayPlanner(Silo):
             self.schedule.setItem( c, 0 , t)
             c+=1
         self.schedule.setColumnWidth(0,45)
+        self.schedule.setColumnWidth(1, 35)
         self.schedule.resizeRowsToContents()
-        self.schedule.resizeColumnToContents(1)
+        self.schedule.resizeColumnToContents(2)
         #self.scroll_to_now()
 
     def select_row(self, row):
@@ -568,6 +751,20 @@ class DayPlanner(Silo):
                       mix[0] * color1.blue() + mix[1] * color2.blue(),
                       mix[0] * color1.alpha() + mix[1] * color2.alpha())
 
+    def add_events_from_log(self):
+        try:
+            self.populateDay()
+            day = str(self.day[0])+str(self.day[1])+str(self.day[2])
+            base = "/Users/donaldstrubler/Documents/MysteryMachine/DayPlanner"
+            fl = "%s/%s.log" %( base, day )
+            with open(fl) as f:
+                data = json.load(f)
+            for k,v in data.iteritems():
+                for i in v:
+
+                    self.add_event( int(k), i )
+        except:
+            pass
 
     def scroll_to_now(self):
         now = datetime.datetime.now()
@@ -671,8 +868,10 @@ class Panel(QWidget):
         self.tasks = Tasks()
 
         self.puja = Puja()
+        self.eugene = EugeneRoe()
         self.side_splitter = QSplitter(Qt.Vertical)
         self.side_splitter.addWidget(   self.puja )
+        self.side_splitter.addWidget( self.eugene )
         self.side_splitter.addWidget( self.tab['ShirtDesigner'] )
 
 
@@ -689,6 +888,10 @@ class Panel(QWidget):
 
 
         self.master_layout.addWidget(self.splitter_B)
+
+
+
+
 
 
 
